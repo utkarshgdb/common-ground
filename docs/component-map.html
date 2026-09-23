@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Component map</title>
+<style>
+  body { margin: 0; background: #fff; font-family: "Segoe UI", Arial, sans-serif; color: #15231D; }
+  .sheet { width: 1600px; padding: 28px; box-sizing: border-box; }
+  .title { background: #1E4A38; color: #fff; font-size: 26px; font-weight: 700; letter-spacing: .02em; padding: 16px 20px; text-align: center; }
+  table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+  th, td { border: 1.5px solid #15231D; padding: 12px 12px; vertical-align: top; font-size: 14.5px; line-height: 1.42; }
+  thead th { background: #E2E8E3; font-size: 17px; text-align: center; }
+  thead th:first-child { width: 170px; }
+  tbody th { background: #F2F4F0; text-align: left; font-size: 16px; }
+  tbody th small { display: block; font-weight: 400; font-size: 12.5px; color: #56675F; margin-top: 4px; }
+  td b { font-weight: 700; }
+  tr.none td { background: #FBF6EC; font-size: 15px; }
+  .foot { margin-top: 10px; font-size: 12.5px; color: #56675F; }
+</style>
+</head>
+<body>
+<div class="sheet">
+  <div class="title">SECTION A — GROUP TRIP PLANNER</div>
+  <table>
+    <thead>
+      <tr><th></th><th>Trigger</th><th>Input</th><th>Context</th><th>Processing</th><th>Output</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <th>Riya (Coordinator)</th>
+        <td>Creates the room; later opens her private coordinator link, or the reply deadline passes.</td>
+        <td>Trip name, the 5 names, trip length (2–5 days), date window, reply deadline. Later: which idea is up for review, a custom idea, extend / postpone / close.</td>
+        <td>Everyone's status labels and answers (never raw budgets, dates or notes); the rules' next move and fix hints; the deadline record.</td>
+        <td>App creates the room and private links; rules find the blocker and verify fix hints; Gemini may word the next step. <b>She can't supply anyone's yes.</b></td>
+        <td>One group link + a private coordinator link; the Next-step card; WhatsApp drafts (invite, update, personal reminder) that she sends herself.</td>
+      </tr>
+      <tr>
+        <th>Friends (x 4)<small>Siddharth, Karan, Aisha, Preethi (Riya answers the same way)</small></th>
+        <td>Tap the group link in WhatsApp and claim their own name (private session + private recovery link).</td>
+        <td>Home city, max + comfortable budget, which dates work, up to 3 vibes, won't-dos; optional max travel hours, leave, private note. Their answer: Yes / Needs a change / Can't join. Their own estimate correction.</td>
+        <td>"Can this trip work for you?": their own all-in estimate with basis and date, their status and trade-offs, where everyone stands (labels only), the decision policy.</td>
+        <td>Engine checks their limits for each idea; consent logic ties their yes to the current terms and versions.</td>
+        <td>Their personal view; a versioned yes that reopens only if something they agreed to changes; "Agreed for planning" when all 5 say yes.</td>
+      </tr>
+      <tr>
+        <th>Trip Planner App<small>Next.js on Vercel</small></th>
+        <td>Every page load or API call. No background jobs: the deadline is checked on the first read or write after it passes.</td>
+        <td>Room state from Supabase; curated catalogue (33 Indian destinations, 14 home cities, costs per day, seasons).</td>
+        <td>Fixed rules: status precedence, ordering rule, the 4 change rules, "silence isn't a yes", per-viewer privacy projection.</td>
+        <td>Deterministic engine: date slots, distance-based travel + cost estimate, per-person statuses, ranking, 3 dissimilar ideas, fix hints re-scored before display; consent + deadline logic.</td>
+        <td>Per-person view; agreed state only with 5 valid current yeses; deadline record (agreed / unresolved, n/5); book-yourself checklist. Everything works with no Gemini key.</td>
+      </tr>
+      <tr>
+        <th>Gemini (LLM)<small>REST, server-side only</small></th>
+        <td>Coordinator opens the Next-step card; an idea goes up for review (sketch); a friend taps "Read my note".</td>
+        <td>Anonymous slots A–E with statuses, answers and counts; the focused idea's name, tags, days and anonymous won't-dos; one person's own note.</td>
+        <td>JSON response schema; allow-list of limit types; instructions never to decide, name people or mention money.</td>
+        <td>Words one question + WhatsApp draft; writes a 3-line "what we'd do" sketch; reads a note into allow-listed limits.</td>
+        <td>Validated JSON or the labelled rules fallback; names filled in on the server; note limits count only after the person ticks them.</td>
+      </tr>
+      <tr>
+        <th>Supabase (Database)<small>project "mesaAI", cg_ tables</small></th>
+        <td>Every server read and write (service-role key, never in the browser).</td>
+        <td>Rooms, members (hashed tokens only), preferences, ideas, estimate corrections, versioned answers, deadline outcomes, events.</td>
+        <td>RLS on with no public policies; existing tables in the project untouched.</td>
+        <td>Saves only the rows that changed; one outcome row per (room, deadline) so a deadline is recorded exactly once.</td>
+        <td>Durable room state and the History timeline.</td>
+      </tr>
+      <tr class="none">
+        <th>Other API (Optional)</th>
+        <td colspan="5"><b>None, on purpose (The Cut): no live fare/booking API.</b> Reliable live fares and availability aren't available to us, and a wrong price that breaks someone's budget would recreate the blame Riya faces. Instead every ₹ is an estimate with its basis and date, each person can correct their own total, and everyone books their own travel.</td>
+      </tr>
+    </tbody>
+  </table>
+  <p class="foot">Common Ground · Rules check, AI helps, people decide.</p>
+</div>
+</body>
+</html>
