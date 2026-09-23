@@ -1,15 +1,28 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { RoomView } from "@/lib/projection";
 import { waLink } from "@/lib/drafts";
 import { CopyButton } from "../ui";
-import type { Act, Tab } from "./Room";
+import type { Act, Ai, Tab } from "./Room";
 import { ExtendSheet } from "./Sheets";
 
 /** Coordinator-only: one sentence, one suggested action, WhatsApp drafts. Nothing here can supply anyone's yes. */
-export function NextStep({ view, act, busy, goTo }: { view: RoomView; act: Act; busy: boolean; goTo: (t: Tab) => void }) {
+export function NextStep({ view, act, ai, busy, goTo }: { view: RoomView; act: Act; ai: Ai; busy: boolean; goTo: (t: Tab) => void }) {
   const c = view.coordinator!;
-  const s = c.nextStep;
+  const [worded, setWorded] = useState<typeof c.nextStep | null>(null);
+  const sig = JSON.stringify([c.nextStep.action, c.nextStep.question, view.people.map((p) => p.state), view.focus?.key, view.focus?.version]);
+  useEffect(() => {
+    let live = true;
+    setWorded(null);
+    ai<{ step: typeof c.nextStep }>("next_step").then((r) => {
+      if (live && r?.step?.source === "gemini" && r.step.action === c.nextStep.action) setWorded(r.step);
+    });
+    return () => {
+      live = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sig, ai]);
+  const s = worded ?? c.nextStep;
   const [recipient, setRecipient] = useState(c.drafts.reminders[0]?.name ?? "");
   const [extend, setExtend] = useState(false);
   const reminder = c.drafts.reminders.find((r) => r.name === recipient);

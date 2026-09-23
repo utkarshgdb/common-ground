@@ -4,7 +4,7 @@ import { ACTIVITIES, CITIES, DEALBREAKERS, DESTINATIONS, VIBES, destinationById 
 import { answers, focusOption, groupInput } from "./consent";
 import { recordOutcomeIfDue } from "./deadline";
 import { liveKey, personResult, ideaFromOption, suggest, tripSlots, fixHints, slotLabel, type HintChange } from "./engine";
-import type { Answer, Correction, EventRow, Member, Preferences, ResponseRow, RoomState, TripOption } from "./types";
+import type { Answer, Correction, EventRow, Member, ParsedLimit, Preferences, ResponseRow, RoomState, TripOption } from "./types";
 import { addDays, toDate, todayIST, shortDate } from "./util";
 
 export class ActionError extends Error {
@@ -174,13 +174,34 @@ export function normalizePrefs(s: RoomState, member: string, input: PrefsInput, 
   if (has("wont_do")) next.wont_do = [...new Set((input.wont_do ?? []).map(String))].filter((x) => DEALBREAKERS.some((y) => y.id === x)).sort();
   if (has("max_travel_hours")) next.max_travel_hours = int(input.max_travel_hours, 1, 48);
   if (has("leave_days")) next.leave_days = int(input.leave_days, 0, 10);
-  if (has("note_private")) next.note_private = str(input.note_private, 500);
-  if (has("parsed_limits")) next.parsed_limits = Array.isArray(input.parsed_limits) ? input.parsed_limits : [];
+  if (has("note_private")) {
+    next.note_private = str(input.note_private, 500);
+    if (next.note_private !== base.note_private && !has("parsed_limits")) next.parsed_limits = [];
+  }
+  if (has("parsed_limits")) next.parsed_limits = sanitizeParsed(input.parsed_limits, roomSlots);
   next.complete = !!(next.home_city && next.budget_max && next.slots.length > 0);
   return next;
 }
 
 const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
+
+/** Server-side allow-list for note-derived limits (P1-2). Only items the person confirmed ever count (engine.effectivePrefs). */
+export function sanitizeParsed(v: unknown, roomSlots: string[]): ParsedLimit[] {
+  if (!Array.isArray(v)) return [];
+  const out: ParsedLimit[] = [];
+  for (const it of v.slice(0, 8) as Record<string, unknown>[]) {
+    const confirmed = it?.confirmed === true;
+    const n = Number(it?.value);
+    if (it?.kind === "max_leave_days" && Number.isInteger(n) && n >= 0 && n <= 10) out.push({ kind: "max_leave_days", value: n, confirmed });
+    else if (it?.kind === "max_travel_hours" && Number.isInteger(n) && n >= 1 && n <= 48) out.push({ kind: "max_travel_hours", value: n, confirmed });
+    else if (it?.kind === "add_wont_do" && DEALBREAKERS.some((d) => d.id === it.value)) out.push({ kind: "add_wont_do", value: String(it.value), confirmed });
+    else if (it?.kind === "unavailable_slots" && Array.isArray(it.value)) {
+      const ok = (it.value as unknown[]).map(String).filter((x) => roomSlots.includes(x));
+      if (ok.length) out.push({ kind: "unavailable_slots", value: [...new Set(ok)].sort(), confirmed });
+    } else if (it?.kind === "info_only" && typeof it.value === "string") out.push({ kind: "info_only", value: it.value.slice(0, 140), confirmed });
+  }
+  return out;
+}
 
 /** Rule 3: a member's own edit reopens only that member's yes. Identical values change nothing. */
 export function savePreferences(s: RoomState, actor: Actor, input: PrefsInput, now: Date): { state: RoomState; changed: boolean } {

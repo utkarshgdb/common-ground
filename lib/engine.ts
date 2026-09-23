@@ -541,3 +541,18 @@ export function fixHints(idea: Idea, g: GroupInput): FixHint[] {
   }
   return hints;
 }
+
+// ---------------------------------------------------------------------------------------------- season line (P1-5)
+
+/** Typical conditions for the trip's month, precomputed from the catalogue's season data (no live weather). */
+export function seasonLine(destinationId: string | null, start: string): string | null {
+  const dest = destinationById(destinationId);
+  if (!dest) return null;
+  const m = monthOf(start);
+  const month = MONTH_NAMES[m - 1];
+  if (dest.offMonths?.includes(m)) return `${month} is off-season here: ${dest.offReason ?? "check conditions"}.`;
+  if (dest.coldMonths?.includes(m)) return `${month} is cold here. Pack warm layers.`;
+  const next = [m % 12 + 1];
+  if (dest.offMonths?.some((x) => next.includes(x))) return `${month} is in season, just before the ${dest.offReason?.split(",")[0] ?? "off-season"}.`;
+  return `${month} is usually a good time: no monsoon, heat or winter closures in our data.`;
+}

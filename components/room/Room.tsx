@@ -12,6 +12,7 @@ import { YourTrip } from "./YourTrip";
 
 export type ApiError = { message: string; code?: string; details?: unknown } | null;
 export type Act = (type: string, payload?: Record<string, unknown>) => Promise<boolean>;
+export type Ai = <T = Record<string, unknown>>(job: string) => Promise<T | null>;
 export type Tab = "trip" | "compare" | "prefs" | "history";
 
 const TABS: { id: Tab; label: string; short: string }[] = [
@@ -96,6 +97,17 @@ export function Room({ id, initialAs }: { id: string; initialAs: string | null }
 
   const act: Act = useCallback((type, payload = {}) => post(`/api/rooms/${id}/action`, { type, payload }), [id, post]);
   const demo = useCallback((step: string) => post(`/api/rooms/${id}/demo`, { step }), [id, post]);
+  const ai: Ai = useCallback(
+    async (job) => {
+      try {
+        const r = await fetch(`/api/rooms/${id}/ai`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ job, as: viewAs ?? undefined }) });
+        return r.ok ? await r.json() : null;
+      } catch {
+        return null;
+      }
+    },
+    [id, viewAs],
+  ) as Ai;
 
   if (loadError)
     return (
@@ -182,9 +194,9 @@ export function Room({ id, initialAs }: { id: string; initialAs: string | null }
             </nav>
             <ErrorNote message={error && error.code !== "blocked" ? error.message : null} />
             <div role="tabpanel">
-              {tab === "trip" && <YourTrip view={v} act={act} busy={busy} error={error} clearError={() => setError(null)} goTo={setTab} />}
+              {tab === "trip" && <YourTrip view={v} act={act} ai={ai} busy={busy} error={error} clearError={() => setError(null)} goTo={setTab} />}
               {tab === "compare" && <Compare view={v} act={act} busy={busy} />}
-              {tab === "prefs" && <Preferences key={`${v.viewer.name}-${v.me?.prefs?.updated_at ?? ""}`} view={v} act={act} busy={busy} onSaved={() => setTab("trip")} />}
+              {tab === "prefs" && <Preferences key={`${v.viewer.name}-${v.me?.prefs?.updated_at ?? ""}`} view={v} act={act} ai={ai} busy={busy} onSaved={() => setTab("trip")} />}
               {tab === "history" && <History view={v} />}
             </div>
           </main>

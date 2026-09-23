@@ -38,7 +38,7 @@ export function Compare({ view, act, busy }: { view: RoomView; act: Act; busy: b
               <h3 className="text-xl">{i.name}</h3>
               <p className="text-sm text-muted">{i.dates}{i.place ? `, ${i.place}` : ""}</p>
               <p className="text-sm text-muted">{i.leave[0].toUpperCase() + i.leave.slice(1)}{i.source !== "engine" ? `, ${i.source === "variant" ? "variant" : "added by the coordinator"}` : ""}</p>
-              {i.offSeason && <p className="mt-1 text-sm font-bold text-limit">Off-season: {i.offReason}</p>}
+              {i.season && <p className={`mt-1 text-sm ${i.offSeason ? "font-bold text-limit" : "text-muted"}`}>{i.season}</p>}
               <div className="mt-3 flex items-end justify-between gap-2">
                 <div>
                   <p className="text-xs font-bold text-muted">Your estimate</p>

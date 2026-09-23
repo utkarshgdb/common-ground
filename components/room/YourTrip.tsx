@@ -1,10 +1,10 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { RoomView } from "@/lib/projection";
 import { inr, formatIST } from "@/lib/util";
 import { ConsentStrip, StatusPill } from "../ui";
 import { NextStep } from "./NextStep";
-import type { Act, ApiError, Tab } from "./Room";
+import type { Act, Ai, ApiError, Tab } from "./Room";
 import { AgreeSheet, Blockers, ChangeSheet, CorrectSheet, EstimateBlock } from "./Sheets";
 
 const ANSWER_WORD: Record<string, string> = {
@@ -15,8 +15,8 @@ const ANSWER_WORD: Record<string, string> = {
   none: "No answer yet",
 };
 
-export function YourTrip({ view, act, busy, error, clearError, goTo }: {
-  view: RoomView; act: Act; busy: boolean; error: ApiError; clearError: () => void; goTo: (t: Tab) => void;
+export function YourTrip({ view, act, ai, busy, error, clearError, goTo }: {
+  view: RoomView; act: Act; ai: Ai; busy: boolean; error: ApiError; clearError: () => void; goTo: (t: Tab) => void;
 }) {
   const [sheet, setSheet] = useState<null | "agree" | "change" | "cannot" | "correct">(null);
   const open = (s: typeof sheet) => {
@@ -54,7 +54,7 @@ export function YourTrip({ view, act, busy, error, clearError, goTo }: {
         </p>
       )}
 
-      {view.coordinator && <NextStep view={view} act={act} busy={busy} goTo={goTo} />}
+      {view.coordinator && <NextStep view={view} act={act} ai={ai} busy={busy} goTo={goTo} />}
 
       {!f && <NoFocus view={view} goTo={goTo} />}
 
@@ -69,7 +69,7 @@ export function YourTrip({ view, act, busy, error, clearError, goTo }: {
             <p className="text-muted">
               {f.dates}, {f.days} days{f.place ? `, ${f.place}` : ""}. {f.leave[0].toUpperCase() + f.leave.slice(1)}.
             </p>
-            {f.offSeason && <p className="mt-1 text-sm font-bold text-limit">Off-season that month: {f.offReason}</p>}
+            {f.season && <p className={`mt-1 text-sm ${f.offSeason ? "font-bold text-limit" : ""}`}>{f.season}</p>}
             {f.sharedAssumptions && <p className="mt-1 text-sm">Assumes: {f.sharedAssumptions}</p>}
           </div>
 
@@ -109,6 +109,7 @@ export function YourTrip({ view, act, busy, error, clearError, goTo }: {
               <p key={h.text} className="rounded-lg bg-compbg px-3 py-2 text-sm"><strong>Fix hint:</strong> {h.text}.</p>
             ))}
 
+            <TripSketch ideaKey={`${f.key}:${f.version}`} ai={ai} />
             {me && <MyAnswer view={view} />}
 
             {isOpen && (
@@ -163,6 +164,32 @@ export function YourTrip({ view, act, busy, error, clearError, goTo }: {
           {f.stored && <CorrectSheet key={`x${sheet}`} open={sheet === "correct"} onClose={() => setSheet(null)} idea={f} act={act} busy={busy} error={error} />}
         </>
       )}
+    </div>
+  );
+}
+
+type SketchResp = { sketch: { arrive: string; main: string; leave: string } | null };
+/** P1-3: optional Gemini sketch, validated server-side against everyone's won't-dos. Shows nothing without a key. */
+function TripSketch({ ideaKey, ai }: { ideaKey: string; ai: Ai }) {
+  const [sk, setSk] = useState<SketchResp["sketch"]>(null);
+  useEffect(() => {
+    let live = true;
+    setSk(null);
+    ai<SketchResp>("sketch").then((r) => live && setSk(r?.sketch ?? null));
+    return () => {
+      live = false;
+    };
+  }, [ideaKey, ai]);
+  if (!sk) return null;
+  return (
+    <div className="border-l-2 border-marigold pl-3">
+      <p className="font-bold">What we might do</p>
+      <dl className="mt-1 grid grid-cols-[4.5rem_1fr] gap-x-2 gap-y-1 text-sm">
+        <dt className="text-muted">Arrive</dt><dd>{sk.arrive}</dd>
+        <dt className="text-muted">Main day</dt><dd>{sk.main}</dd>
+        <dt className="text-muted">Leave</dt><dd>{sk.leave}</dd>
+      </dl>
+      <p className="hint mt-1">A sketch by Gemini, checked against everyone's won't-do list. Not a plan or a booking.</p>
     </div>
   );
 }

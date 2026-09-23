@@ -2,7 +2,8 @@
 import { useState } from "react";
 import { CITIES, DEALBREAKERS, VIBES } from "@/lib/catalogue";
 import type { RoomView } from "@/lib/projection";
-import type { Act } from "./Room";
+import type { Act, Ai } from "./Room";
+import { NoteReader } from "./NoteReader";
 
 type Form = {
   home_city: string; budget_max: string; budget_comfortable: string; slots: string[]; vibes: string[]; wont_do: string[];
@@ -12,7 +13,7 @@ type Form = {
 const s = (n: number | null | undefined) => (n == null ? "" : String(n));
 const num = (v: string) => (v.trim() === "" ? null : Number(v));
 
-export function Preferences({ view, act, busy, onSaved }: { view: RoomView; act: Act; busy: boolean; onSaved: () => void }) {
+export function Preferences({ view, act, ai, busy, onSaved }: { view: RoomView; act: Act; ai: Ai; busy: boolean; onSaved: () => void }) {
   const p = view.me?.prefs;
   const [f, setF] = useState<Form>({
     home_city: p?.home_city ?? "", budget_max: s(p?.budget_max), budget_comfortable: s(p?.budget_comfortable), slots: p?.slots ?? [],
@@ -140,7 +141,8 @@ export function Preferences({ view, act, busy, onSaved }: { view: RoomView; act:
             <div>
               <label className="label" htmlFor="pn">Private note</label>
               <textarea id="pn" className="field min-h-[88px]" maxLength={500} value={f.note_private} onChange={(e) => set("note_private", e.target.value)} placeholder="Only you can see this." />
-              <p className="hint mt-1">Only you see this note. It isn't used as a limit.</p>
+              <p className="hint mt-1">Only you see this note. It only counts as a limit if you confirm what we read from it below.</p>
+              {f.note_private === (p?.note_private ?? "") && <NoteReader view={view} act={act} ai={ai} busy={busy} />}
             </div>
           </div>
         )}

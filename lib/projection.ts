@@ -6,7 +6,7 @@ import { answers, focusOption, groupInput, isAgreed, memberState, validYesCount,
 import { nextMove, outcomeForCurrentDeadline, isPastDeadline } from "./deadline";
 import { rulesNextStep, reminderFor, groupUpdate, announcement, waLink, type NextStep, type DraftContext } from "./drafts";
 import {
-  ORDERING_RULE, STATUS_LABEL, fixHints, ideaFromOption, leaveLabel, leaveNeeded, scoreIdea, slotLabel, suggest,
+  ORDERING_RULE, STATUS_LABEL, fixHints, seasonLine, ideaFromOption, leaveLabel, leaveNeeded, scoreIdea, slotLabel, suggest,
   type Estimate, type FixHint, type IdeaScore, type Reason, type Status,
 } from "./engine";
 import { POLICY_TEXT, REASON_CHIPS } from "./actions";
@@ -43,6 +43,7 @@ export type IdeaView = {
   leave: string;
   offSeason: boolean;
   offReason: string | null;
+  season: string | null;
   isFocus: boolean;
   version: number;
   activities: string[];
@@ -166,6 +167,7 @@ export function project(s: RoomState, viewer: Viewer, opts: { now: Date; groupLi
       leave: leaveLabel(leaveNeeded(sc.idea.start, sc.idea.days)),
       offSeason: sc.offSeason,
       offReason: sc.offReason,
+      season: seasonLine(sc.idea.destinationId, sc.idea.start),
       isFocus,
       version: sc.idea.version,
       activities: opt?.activities ?? [],
