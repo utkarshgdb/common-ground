@@ -12,6 +12,8 @@ export type DraftContext = {
   validYes: number;
   total: number;
   complete: number;
+  /** The coordinator viewing the card, so they aren't asked to nudge themselves. */
+  me?: string | null;
 };
 
 export type NextStep = { summary: string; question: string; action: NextAction; whatsapp: string; source: "rules" | "gemini" };
@@ -30,7 +32,7 @@ export function rulesNextStep(move: NextMove, c: DraftContext): NextStep {
     case "collect":
       return {
         summary: `${c.complete}/${c.total} have added their preferences. Trip ideas appear once three have.`,
-        question: move.names.length ? `Could ${list(move.names)} add their limits (about 2 minutes)?` : "Everyone's in. Ideas are on their way.",
+        question: move.names.filter((n) => n !== c.me).length ? `Could ${list(move.names.filter((n) => n !== c.me))} add their limits (about 2 minutes)?` : move.names.length ? "Add your own preferences to get ideas started." : "Everyone's in. Ideas are on their way.",
         action: "invite",
         whatsapp: `Hi all! To finally lock our trip, add your limits here (about 2 minutes, budgets stay private): ${c.groupLink}\nReply by ${by}.`,
         source: "rules",
@@ -59,14 +61,19 @@ export function rulesNextStep(move: NextMove, c: DraftContext): NextStep {
         whatsapp: `Quick one: ${move.hintText.replace(/^Works for/, "a small change works for")}. I'll add it as an option. Have a look: ${c.groupLink}`,
         source: "rules",
       };
-    case "nudge":
+    case "nudge": {
+      const others = move.names.filter((n) => n !== c.me);
+      const selfToo = !!c.me && move.names.includes(c.me);
       return {
         summary: `${f} is up for review. ${c.validYes}/${c.total} have said yes.`,
-        question: `Waiting on ${list(move.names)}. Send a reminder?`,
-        action: "nudge",
-        whatsapp: `${f} is up for review. ${c.validYes}/${c.total} are in so far. ${list(move.names)}, can this trip work for you? Takes a minute: ${c.groupLink}\nReply by ${by}.`,
+        question: others.length
+          ? `Waiting on ${list(others)}.${selfToo ? " You haven't answered yet either." : ""} Send a reminder?`
+          : "Only your own answer is missing. Answer below.",
+        action: others.length ? "nudge" : "none",
+        whatsapp: `${f} is up for review. ${c.validYes}/${c.total} are in so far. ${list(others.length ? others : move.names)}, can this trip work for you? Takes a minute: ${c.groupLink}\nReply by ${by}.`,
         source: "rules",
       };
+    }
     case "limit":
       return {
         summary: `${list(move.names)} ${move.names.length === 1 ? "has" : "have"} a limit this idea doesn't meet, and no single change fixes it.`,

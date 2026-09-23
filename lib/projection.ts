@@ -216,7 +216,7 @@ export function project(s: RoomState, viewer: Viewer, opts: { now: Date; groupLi
     const ctx: DraftContext = {
       roomName: s.room.name, groupLink: opts.groupLink, deadlineAt: s.room.deadline_at,
       focus: focus ? { name: focus.name, start: focus.start_date, days: focus.days } : null,
-      validYes, total: s.members.length, complete,
+      validYes, total: s.members.length, complete, me: viewer.member,
     };
     const step = opts.stepOverride ?? rulesNextStep(nextMove(s), ctx);
     const invite = rulesNextStep({ kind: "collect", names: [] }, ctx).whatsapp;

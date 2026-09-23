@@ -40,7 +40,7 @@ const note = (s: RoomState, text: string, now: Date): RoomState => ({
   ...s, events: [...s.events, { room_id: s.room.id, type: "demo", member: null, meta: { text }, at: now.toISOString() }],
 });
 
-/** A fresh demo room: 4 of 5 have preferences; Karan hasn't filled his in. */
+/** A fresh demo room: 4 of 5 have preferences; Karan's are still empty. */
 export function buildDemo(id: string, adminHash: string, now: Date, mode: "full" | "three" = "full"): RoomState {
   const today = todayIST(now);
   const windowStart = addDays(today, 1);

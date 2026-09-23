@@ -1,0 +1,36 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --paper: 242 244 240;   /* #F2F4F0 cool paper */
+  --surface: 255 255 255;
+  --ink: 21 35 29;        /* #15231D */
+  --forest: 30 74 56;     /* #1E4A38 */
+  --sage: 226 232 227;    /* #E2E8E3 */
+  --line: 203 213 205;    /* #CBD5CD */
+  --muted: 86 103 95;     /* #56675F */
+  --marigold: 183 121 31; /* #B7791F */
+  --limit: 139 38 38;     /* #8B2626 */
+  --limitbg: 247 229 226;
+  --fitbg: 222 238 228;
+  --compbg: 248 236 212;
+}
+
+html { background: rgb(var(--paper)); color: rgb(var(--ink)); -webkit-text-size-adjust: 100%; }
+body { font-family: var(--font-sans), system-ui, sans-serif; font-size: 1rem; line-height: 1.55; overflow-x: hidden; }
+h1, h2, h3 { font-family: var(--font-serif), Georgia, serif; font-weight: 600; letter-spacing: -0.01em; line-height: 1.2; }
+:focus-visible { outline: 3px solid rgb(var(--marigold)); outline-offset: 2px; border-radius: 4px; }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
+
+@layer components {
+  .btn { @apply inline-flex min-h-[44px] items-center justify-center gap-2 rounded-lg px-4 py-2 text-[0.95rem] font-bold transition-colors disabled:cursor-not-allowed disabled:opacity-50; }
+  .btn-primary { @apply btn bg-forest text-white hover:bg-ink; }
+  .btn-quiet { @apply btn border border-line bg-surface text-ink hover:border-forest; }
+  .btn-link { @apply inline-flex min-h-[44px] items-center gap-1 font-bold text-forest underline decoration-2 underline-offset-4 hover:text-ink; }
+  .field { @apply block w-full min-h-[44px] rounded-lg border border-line bg-surface px-3 py-2 text-ink placeholder:text-muted/70 focus:border-forest; }
+  .label { @apply mb-1 block text-sm font-bold text-ink; }
+  .hint { @apply text-sm text-muted; }
+  .panel { @apply rounded-xl border border-line bg-surface; }
+  .chip { @apply inline-flex min-h-[44px] cursor-pointer select-none items-center gap-2 rounded-full border border-line bg-surface px-4 text-sm font-bold has-[:checked]:border-forest has-[:checked]:bg-forest has-[:checked]:text-white has-[:focus-visible]:outline has-[:focus-visible]:outline-[3px] has-[:focus-visible]:outline-marigold; }
+}
