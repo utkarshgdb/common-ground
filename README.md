@@ -102,7 +102,7 @@ npx vitest run --config vitest.eval.mts    # live Gemini note-parsing eval (need
 
 Totals: 56 unit tests and 8 end-to-end tests passing. A deliberately planted bug (over-budget treated as a compromise) was caught by the suite.
 
-**P1-2 note-parsing eval:** 25 labelled notes (easy, ambiguous, out-of-scope, adversarial) in [tests/eval/notes.json](tests/eval/notes.json); target ≥ 90% exact match. _Result: not yet run (needs a Gemini key)._
+**P1-2 note-parsing eval:** 25 labelled notes (easy, ambiguous, out-of-scope, adversarial) in [tests/eval/notes.json](tests/eval/notes.json); target ≥ 90% exact match. **Result: 25/25 = 100% exact match** with `gemini-3.8-flash` (24 Sep 2026), including all 4 adversarial notes. Server-side allow-list validation runs regardless of what the model returns, and nothing counts until the person ticks it.
 
 ## Project layout
 
