@@ -111,33 +111,41 @@ class SupabaseStore implements Store {
       const { error } = await this.db.from("cg_rooms").upsert(next.room);
       if (error) throw error;
     }
-    for (const t of TABLES) {
+    const check = async (q: PromiseLike<{ error: unknown }>) => {
+      const { error } = await q;
+      if (error) throw error;
+    };
+    const syncTable = async (t: Table) => {
       const before = new Map(((prev?.[t.field] as any[]) ?? []).map((r) => [t.key(r), r]));
       const after = new Map((next[t.field] as any[]).map((r) => [t.key(r), r]));
       const upserts = [...after.entries()].filter(([k, r]) => !same(before.get(k), r)).map(([, r]) => r);
       const deletes = [...before.entries()].filter(([k]) => !after.has(k)).map(([, r]) => r);
-      if (upserts.length) {
-        const { error } = await this.db.from(t.name).upsert(upserts, { onConflict: t.pk.join(",") });
-        if (error) throw error;
-      }
+      const ops: Promise<void>[] = [];
+      if (upserts.length) ops.push(check(this.db.from(t.name).upsert(upserts, { onConflict: t.pk.join(",") })));
       for (const r of deletes) {
         let del = this.db.from(t.name).delete();
         for (const k of t.pk) del = del.eq(k, r[k]);
-        const { error } = await del;
-        if (error) throw error;
+        ops.push(check(del));
       }
-    }
-    const keptIds = new Set(next.events.map((e) => e.id).filter((x) => x != null));
-    const dropped = (prev?.events ?? []).map((e) => e.id).filter((x): x is number => x != null && !keptIds.has(x));
-    if (dropped.length) {
-      const { error } = await this.db.from("cg_events").delete().eq("room_id", next.room.id).in("id", dropped);
-      if (error) throw error;
-    }
-    const newEvents = next.events.filter((e) => e.id == null).map(({ id: _id, ...e }) => e);
-    if (newEvents.length) {
-      const { error } = await this.db.from("cg_events").insert(newEvents);
-      if (error) throw error;
-    }
+      await Promise.all(ops);
+    };
+    const byName = (n: string) => TABLES.find((t) => t.name === n)!;
+    const syncEvents = async () => {
+      const keptIds = new Set(next.events.map((e) => e.id).filter((x) => x != null));
+      const dropped = (prev?.events ?? []).map((e) => e.id).filter((x): x is number => x != null && !keptIds.has(x));
+      if (dropped.length) await check(this.db.from("cg_events").delete().eq("room_id", next.room.id).in("id", dropped));
+      const newEvents = next.events.filter((e) => e.id == null).map(({ id: _id, ...e }) => e);
+      if (newEvents.length) await check(this.db.from("cg_events").insert(newEvents));
+    };
+    // The room row exists first (above); then tables in parallel, except preferences, which reference members.
+    await Promise.all([
+      (async () => {
+        await syncTable(byName("cg_members"));
+        await syncTable(byName("cg_preferences"));
+      })(),
+      ...["cg_options", "cg_corrections", "cg_responses", "cg_outcomes"].map((n) => syncTable(byName(n))),
+      syncEvents(),
+    ]);
   }
 
   async deleteRoom(id: string) {
@@ -164,7 +172,13 @@ export function getStore(): Store {
   const url = process.env.SUPABASE_URL;
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (url && key) {
-    cached = new SupabaseStore(createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } }));
+    cached = new SupabaseStore(
+      createClient(url, key, {
+        auth: { persistSession: false, autoRefreshToken: false },
+        // Next.js caches fetch() by default; room state must always be read fresh (a stale read loses sessions and answers).
+        global: { fetch: (input, init) => fetch(input, { ...init, cache: "no-store" }) },
+      }),
+    );
   } else {
     cached = new LocalStore(process.env.CG_DATA_DIR || path.join(process.cwd(), ".data", "rooms"));
   }
