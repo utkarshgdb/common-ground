@@ -72,6 +72,8 @@ export function AgreeSheet({ open, onClose, view, act, busy, error, onFix }: {
         <p className="font-bold">Your trade-offs</p>
         {tradeoffs.length ? (
           <ul className="mt-1 list-disc pl-5">{tradeoffs.map((t, i) => <li key={i}>{t.text}</li>)}</ul>
+        ) : blocked ? (
+          <p className="text-muted">We can't tell yet. Sort out the checks below first.</p>
         ) : (
           <p className="text-muted">None. It fits everything you told us.</p>
         )}

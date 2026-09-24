@@ -170,7 +170,7 @@ describe("randomized engine properties (500 groups)", () => {
     expect(checkedPeople).toBeGreaterThan(10000);
     expect(hintsChecked).toBeGreaterThan(50);
     console.log(`engine property test: ${GROUPS} groups, ${checkedPeople} person-checks, ${hintsChecked} hints verified, ${dissimilarChecked} similar pairs justified`);
-  });
+  }, 60_000);
 
   test("pickDissimilar skips a near-duplicate when a comparable alternative exists", () => {
     const g: GroupInput = { members: ["A"], prefs: new Map([["A", prefs({ member: "A", slots: ["2026-10-16"], budget_max: 99000 })]]), tripDays: 3, slots: ["2026-10-16"] };

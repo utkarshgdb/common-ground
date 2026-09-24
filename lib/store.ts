@@ -107,10 +107,6 @@ class SupabaseStore implements Store {
 
   async save(prev: RoomState | null, next: RoomState) {
     const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
-    if (!prev || !same(prev.room, next.room)) {
-      const { error } = await this.db.from("cg_rooms").upsert(next.room);
-      if (error) throw error;
-    }
     const check = async (q: PromiseLike<{ error: unknown }>) => {
       const { error } = await q;
       if (error) throw error;
@@ -121,7 +117,9 @@ class SupabaseStore implements Store {
       const upserts = [...after.entries()].filter(([k, r]) => !same(before.get(k), r)).map(([, r]) => r);
       const deletes = [...before.entries()].filter(([k]) => !after.has(k)).map(([, r]) => r);
       const ops: Promise<void>[] = [];
-      if (upserts.length) ops.push(check(this.db.from(t.name).upsert(upserts, { onConflict: t.pk.join(",") })));
+      // Deadline outcomes are write-once: if another server instance recorded this deadline first, keep its record.
+      const writeOnce = t.name === "cg_outcomes";
+      if (upserts.length) ops.push(check(this.db.from(t.name).upsert(upserts, { onConflict: t.pk.join(","), ignoreDuplicates: writeOnce })));
       for (const r of deletes) {
         let del = this.db.from(t.name).delete();
         for (const k of t.pk) del = del.eq(k, r[k]);
@@ -137,13 +135,19 @@ class SupabaseStore implements Store {
       const newEvents = next.events.filter((e) => e.id == null).map(({ id: _id, ...e }) => e);
       if (newEvents.length) await check(this.db.from("cg_events").insert(newEvents));
     };
-    // The room row exists first (above); then tables in parallel, except preferences, which reference members.
+    const roomChanged = !prev || !same(prev.room, next.room);
+    const upsertRoom = () => check(this.db.from("cg_rooms").upsert(next.room));
+    if (!prev) {
+      // New room: the room row, then its members, must exist before rows that reference them.
+      await upsertRoom();
+      await syncTable(byName("cg_members"));
+    }
+    // Members are only ever created with their room, so for an existing room every table is independent and all
+    // writes go out in one parallel round trip.
     await Promise.all([
-      (async () => {
-        await syncTable(byName("cg_members"));
-        await syncTable(byName("cg_preferences"));
-      })(),
-      ...["cg_options", "cg_corrections", "cg_responses", "cg_outcomes"].map((n) => syncTable(byName(n))),
+      prev && roomChanged ? upsertRoom() : Promise.resolve(),
+      prev ? syncTable(byName("cg_members")) : Promise.resolve(),
+      ...["cg_preferences", "cg_options", "cg_corrections", "cg_responses", "cg_outcomes"].map((n) => syncTable(byName(n))),
       syncEvents(),
     ]);
   }

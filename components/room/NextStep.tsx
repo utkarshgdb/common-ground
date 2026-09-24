@@ -45,7 +45,8 @@ export function NextStep({ view, act, ai, busy, goTo }: { view: RoomView; act: A
           </button>
         )}
         {s.action === "switch_focus" && <button type="button" className="btn-primary" onClick={() => goTo("compare")}>Compare other ideas</button>}
-        <a className={s.action === "create_variant" || s.action === "switch_focus" ? "btn-quiet" : "btn-primary"} href={waLink(s.whatsapp)} target="_blank" rel="noreferrer">
+        {s.action === "reopen" && <button type="button" className="btn-primary" disabled={busy} onClick={() => act("reopen")}>Reopen the room</button>}
+        <a className={s.action === "create_variant" || s.action === "switch_focus" || s.action === "reopen" ? "btn-quiet" : "btn-primary"} href={waLink(s.whatsapp)} target="_blank" rel="noreferrer">
           Open WhatsApp <span aria-hidden="true">↗</span>
         </a>
         <CopyButton text={s.whatsapp} label="Copy WhatsApp draft" />
@@ -55,7 +56,7 @@ export function NextStep({ view, act, ai, busy, goTo }: { view: RoomView; act: A
         <p className="whitespace-pre-wrap rounded-lg bg-sage px-3 py-2">{s.whatsapp}</p>
       </details>
 
-      {c.drafts.reminders.length > 0 && (
+      {c.drafts.reminders.length > 0 && status === "open" && (
         <div className="mt-3 border-t border-line pt-3">
           <label className="label" htmlFor="rem">Personal reminder</label>
           <div className="flex flex-wrap gap-2">

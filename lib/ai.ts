@@ -8,6 +8,7 @@ import { nextMove } from "./deadline";
 import { focusLine, rulesNextStep, type DraftContext, type NextStep } from "./drafts";
 import { scoreIdea, ideaFromOption, slotLabel, STATUS_LABEL } from "./engine";
 import type { ParsedLimit, RoomState } from "./types";
+import { todayIST } from "./util";
 
 export const aiEnabled = () => !!process.env.GEMINI_API_KEY;
 export const aiModel = () => process.env.GEMINI_MODEL || "gemini-3.8-flash";
@@ -66,7 +67,7 @@ export function nextStepInput(s: RoomState, now: Date) {
   const o = focusOption(s);
   const score = o ? scoreIdea(ideaFromOption(o), g) : null;
   const a = answers(s);
-  const move = nextMove(s);
+  const move = nextMove(s, todayIST(now));
   const letter = new Map(g.members.map((m, i) => [m, LETTERS[i]]));
   const anon = (names: string[]) => names.map((n) => letter.get(n)!);
   return {
@@ -114,7 +115,7 @@ export function acceptNextStep(raw: unknown, names: string[], link: string, fall
 }
 
 export async function geminiNextStep(s: RoomState, ctx: DraftContext, now: Date): Promise<NextStep> {
-  const fallback = rulesNextStep(nextMove(s), ctx);
+  const fallback = rulesNextStep(nextMove(s, todayIST(now)), ctx);
   if (!aiEnabled()) return fallback;
   const input = nextStepInput(s, now);
   const fp = "ns:" + fingerprint({ input, m: aiModel(), me: ctx.me && groupInput(s).members.indexOf(ctx.me) });

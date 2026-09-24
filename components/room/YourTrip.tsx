@@ -69,6 +69,7 @@ export function YourTrip({ view, act, ai, busy, error, clearError, goTo }: {
             <p className="text-muted">
               {f.dates}, {f.days} days{f.place ? `, ${f.place}` : ""}. {f.leave[0].toUpperCase() + f.leave.slice(1)}.
             </p>
+            {f.past && <p className="mt-2 rounded-lg bg-limitbg px-3 py-2 text-sm font-bold text-limit">These dates have passed. The coordinator can put another idea up for review.</p>}
             {f.season && <p className={`mt-1 text-sm ${f.offSeason ? "font-bold text-limit" : ""}`}>{f.season}</p>}
             {f.sharedAssumptions && <p className="mt-1 text-sm">Assumes: {f.sharedAssumptions}</p>}
           </div>
@@ -115,9 +116,15 @@ export function YourTrip({ view, act, ai, busy, error, clearError, goTo }: {
             {isOpen && (
               <div className="space-y-3">
                 <div className="grid gap-2 sm:grid-cols-3">
-                  <button type="button" className="btn-primary" onClick={() => open("agree")} disabled={busy}>
-                    {me?.answer === "yes" ? "Yes, I'm in" : me?.answer === "reopened" ? "Re-confirm my yes" : "Yes, I'm in"}
-                  </button>
+                  {me?.answer === "yes" ? (
+                    <p className="btn border-2 border-forest bg-fitbg text-forest" role="status">
+                      <span aria-hidden="true">✓</span> You're in
+                    </p>
+                  ) : (
+                    <button type="button" className="btn-primary" onClick={() => open("agree")} disabled={busy}>
+                      {me?.answer === "reopened" ? "Re-confirm my yes" : "Yes, I'm in"}
+                    </button>
+                  )}
                   <button type="button" className="btn-quiet" onClick={() => open("change")} disabled={busy}>Needs a change</button>
                   <button type="button" className="btn-quiet" onClick={() => open("cannot")} disabled={busy}>Can't join</button>
                 </div>

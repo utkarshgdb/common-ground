@@ -1,4 +1,4 @@
-import { actorFor, errorResponse, json, mutateRoom, view } from "@/lib/server";
+import { actorFor, errorResponse, json, readRoom, view } from "@/lib/server";
 
 export const dynamic = "force-dynamic";
 
@@ -6,7 +6,7 @@ export const dynamic = "force-dynamic";
 export async function GET(req: Request, { params }: { params: { id: string } }) {
   try {
     const as = new URL(req.url).searchParams.get("as");
-    const { state, now } = await mutateRoom(params.id, (s) => s);
+    const { state, now } = await readRoom(params.id);
     return json(view(req, state, actorFor(state, as), now));
   } catch (e) {
     return errorResponse(e);

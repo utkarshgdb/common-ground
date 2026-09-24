@@ -17,7 +17,7 @@ export type DraftContext = {
 };
 
 export type NextStep = { summary: string; question: string; action: NextAction; whatsapp: string; source: "rules" | "gemini" };
-export type NextAction = "nudge" | "create_variant" | "switch_focus" | "announce" | "invite" | "none";
+export type NextAction = "nudge" | "create_variant" | "switch_focus" | "announce" | "invite" | "reopen" | "none";
 
 const list = (n: string[]) => (n.length <= 1 ? n[0] ?? "" : n.slice(0, -1).join(", ") + " and " + n.at(-1));
 
@@ -74,6 +74,22 @@ export function rulesNextStep(move: NextMove, c: DraftContext): NextStep {
         source: "rules",
       };
     }
+    case "paused":
+      return {
+        summary: `This room is ${move.status}. Nobody can answer until it's reopened.`,
+        question: "Reopen it when the group is ready to continue. Answers given so far are kept.",
+        action: "reopen",
+        whatsapp: `Pausing our trip planning for now. I'll share the link again when we pick it back up: ${c.groupLink}`,
+        source: "rules",
+      };
+    case "past":
+      return {
+        summary: `${f} has already started or passed.`,
+        question: "Put another idea up for review, or extend the window by starting a new room.",
+        action: "switch_focus",
+        whatsapp: `Our dates for ${c.focus?.name} have passed. Let's pick the next option: ${c.groupLink}`,
+        source: "rules",
+      };
     case "limit":
       return {
         summary: `${list(move.names)} ${move.names.length === 1 ? "has" : "have"} a limit this idea doesn't meet, and no single change fixes it.`,

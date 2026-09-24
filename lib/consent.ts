@@ -4,14 +4,15 @@
 import { ideaFromOption, scoreIdea, tripSlots, type GroupInput, type IdeaScore, type PersonResult } from "./engine";
 import type { Preferences, ResponseRow, RoomState, TripOption } from "./types";
 
-export function groupInput(s: RoomState): GroupInput {
+/** `today` (YYYY-MM-DD, IST) drops start dates that are today or earlier, so nothing ever suggests a trip in the past. */
+export function groupInput(s: RoomState, today?: string): GroupInput {
   const members = [...s.members].sort((a, b) => a.position - b.position).map((m) => m.name);
   return {
     members,
     prefs: new Map(s.prefs.map((p) => [p.member, p] as [string, Preferences])),
     corrections: s.corrections,
     tripDays: s.room.trip_days,
-    slots: tripSlots(s.room.window_start, s.room.window_end, s.room.trip_days),
+    slots: tripSlots(s.room.window_start, s.room.window_end, s.room.trip_days).filter((d) => !today || d > today),
   };
 }
 

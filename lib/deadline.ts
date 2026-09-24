@@ -45,17 +45,21 @@ export type NextMove =
   | { kind: "limit"; names: string[] }
   | { kind: "cannot"; names: string[] }
   | { kind: "announce" }
+  | { kind: "past" }
+  | { kind: "paused"; status: string }
   | { kind: "none" };
 
 /** The single most useful next move, by rules (used by the Next-step card and after a deadline). */
-export function nextMove(s: RoomState): NextMove {
-  const g = groupInput(s);
+export function nextMove(s: RoomState, today?: string): NextMove {
+  const g = groupInput(s, today);
   const o = focusOption(s);
+  if (s.room.status !== "open") return { kind: "paused", status: s.room.status };
   if (!o) {
     const missing = g.members.filter((m) => !s.prefs.find((p) => p.member === m)?.complete);
     return { kind: "collect", names: missing };
   }
   if (isAgreed(s)) return { kind: "announce" };
+  if (today && o.start_date <= today) return { kind: "past" };
   const a = answers(s);
   const score = focusScore(s)!;
   const cannot = g.members.filter((m) => a.get(m)?.state === "cannot");

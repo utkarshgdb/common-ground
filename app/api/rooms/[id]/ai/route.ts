@@ -4,6 +4,7 @@ import { focusOption, validYesCount } from "@/lib/consent";
 import { tripSlots, slotLabel } from "@/lib/engine";
 import { rulesNextStep } from "@/lib/drafts";
 import { nextMove } from "@/lib/deadline";
+import { todayIST } from "@/lib/util";
 import { actorFor, errorResponse, groupLink, json, loadRoom, rateLimit, readBody } from "@/lib/server";
 
 export const dynamic = "force-dynamic";
@@ -30,7 +31,7 @@ export async function POST(req: Request, { params }: { params: { id: string } })
       const step = await geminiNextStep(s, ctx, now);
       // Discard if the room changed while Gemini was writing.
       const after = await loadRoom(params.id);
-      if (fingerprint(nextStepInput(after, now)) !== before) return json({ step: rulesNextStep(nextMove(after), ctx), stale: true });
+      if (fingerprint(nextStepInput(after, now)) !== before) return json({ step: rulesNextStep(nextMove(after, todayIST(now)), ctx), stale: true });
       return json({ step, ai: aiEnabled() });
     }
 

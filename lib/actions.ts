@@ -56,6 +56,12 @@ const int = (v: unknown, lo: number, hi: number): number | null => {
   if (!Number.isFinite(n) || n < lo || n > hi) throw new ActionError("invalid", `Enter a number between ${lo} and ${hi}.`);
   return n;
 };
+/** Lists from the client must be arrays of strings; anything else is a 400, never a crash. */
+const arr = (v: unknown, label: string): string[] => {
+  if (v == null) return [];
+  if (!Array.isArray(v)) throw new ActionError("invalid", `${label} must be a list.`);
+  return v.slice(0, 50).map(String);
+};
 const isYmd = (v: unknown): v is string => typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v) && !isNaN(toDate(v).getTime());
 
 /** Log a "reopened" history event for every yes that stopped counting because of this action. */
@@ -102,6 +108,7 @@ export function createRoom(id: string, input: CreateRoomInput, adminHash: string
   if (!isYmd(input.window_start) || !isYmd(input.window_end)) throw new ActionError("invalid", "Pick a date window.");
   const span = (toDate(input.window_end).getTime() - toDate(input.window_start).getTime()) / 86400_000;
   if (span < 6 || span > 123) throw new ActionError("invalid", "The date window should be between 1 week and 4 months.");
+  if (input.window_start < todayIST(now)) throw new ActionError("invalid", "The date window can't start in the past.");
   if (tripSlots(input.window_start, input.window_end, days).length === 0) throw new ActionError("invalid", "The window has no possible start dates.");
   const deadline = new Date(input.deadline_at);
   if (isNaN(deadline.getTime()) || deadline.getTime() <= now.getTime()) throw new ActionError("invalid", "The reply deadline must be in the future.");
@@ -165,13 +172,13 @@ export function normalizePrefs(s: RoomState, member: string, input: PrefsInput, 
   if (next.budget_comfortable != null && next.budget_max != null && next.budget_comfortable > next.budget_max)
     throw new ActionError("invalid", "Your comfortable budget can't be above your max.");
   const roomSlots = tripSlots(s.room.window_start, s.room.window_end, s.room.trip_days);
-  if (has("slots")) next.slots = [...new Set((input.slots ?? []).map(String))].filter((x) => roomSlots.includes(x)).sort();
+  if (has("slots")) next.slots = [...new Set(arr(input.slots, "Dates"))].filter((x) => roomSlots.includes(x)).sort();
   if (has("vibes")) {
-    const v = [...new Set((input.vibes ?? []).map(String))].filter((x) => VIBES.some((y) => y.id === x));
+    const v = [...new Set(arr(input.vibes, "Vibes"))].filter((x) => VIBES.some((y) => y.id === x));
     if (v.length > 3) throw new ActionError("invalid", "Pick up to 3 vibes.");
     next.vibes = v;
   }
-  if (has("wont_do")) next.wont_do = [...new Set((input.wont_do ?? []).map(String))].filter((x) => DEALBREAKERS.some((y) => y.id === x)).sort();
+  if (has("wont_do")) next.wont_do = [...new Set(arr(input.wont_do, "Won't-dos"))].filter((x) => DEALBREAKERS.some((y) => y.id === x)).sort();
   if (has("max_travel_hours")) next.max_travel_hours = int(input.max_travel_hours, 1, 48);
   if (has("leave_days")) next.leave_days = int(input.leave_days, 0, 10);
   if (has("note_private")) {
@@ -229,9 +236,11 @@ export function savePreferences(s: RoomState, actor: Actor, input: PrefsInput, n
 function materialize(s: RoomState, key: string, now: Date): { state: RoomState; id: string } {
   const existing = s.options.find((o) => o.id === key && !o.archived);
   if (existing) return { state: s, id: existing.id };
-  const m = /^eng:([a-z0-9]+):(\d{4}-\d{2}-\d{2}):(\d)$/.exec(key);
+  const m = /^eng:([a-z0-9]+):(\d{4}-\d{2}-\d{2}):([2-5])$/.exec(key);
   if (!m) throw new ActionError("not_found", "That idea no longer exists.", 404);
   const [, destId, start, days] = m;
+  // Only real start dates of this room that haven't passed yet.
+  if (!groupInput(s, todayIST(now)).slots.includes(start)) throw new ActionError("invalid", "That start date isn't available in this room.", 400);
   const dest = destinationById(destId);
   if (!dest) throw new ActionError("not_found", "Unknown destination.", 404);
   // Reuse a stored idea with identical terms rather than duplicating it.
@@ -263,7 +272,7 @@ export function setFocus(s: RoomState, actor: Actor, key: string, now: Date, aut
 export function autoFocus(s: RoomState, now: Date): RoomState {
   if (s.room.focus_option_id || s.room.status !== "open") return s;
   if (s.prefs.filter((p) => p.complete).length < Math.min(MIN_READY, s.members.length)) return s;
-  const top = suggest(groupInput(s)).top[0];
+  const top = suggest(groupInput(s, todayIST(now))).top[0];
   if (!top) return s;
   return setFocus(s, { member: null, coordinator: true }, top.idea.key, now, true);
 }
@@ -280,7 +289,7 @@ export type IdeaInput = {
   default_estimate?: number | null;
 };
 
-function normalizeIdea(s: RoomState, input: IdeaInput, prev?: TripOption) {
+function normalizeIdea(s: RoomState, input: IdeaInput, now: Date, prev?: TripOption) {
   const destination_id = input.destination_id !== undefined ? input.destination_id || null : prev?.destination_id ?? null;
   const dest = destinationById(destination_id);
   if (destination_id && !dest) throw new ActionError("invalid", "Unknown destination.");
@@ -289,10 +298,11 @@ function normalizeIdea(s: RoomState, input: IdeaInput, prev?: TripOption) {
   const start_date = input.start_date ?? prev?.start_date;
   if (!isYmd(start_date) || start_date < s.room.window_start || start_date > s.room.window_end)
     throw new ActionError("invalid", "Pick a start date inside the trip window.");
+  if (start_date <= todayIST(now) && start_date !== prev?.start_date) throw new ActionError("invalid", "Pick a start date that hasn't passed.");
   const days = int(input.days ?? prev?.days, 2, 5);
   if (!days) throw new ActionError("invalid", "Trip length must be 2–5 days.");
   const activities = input.activities !== undefined
-    ? [...new Set(input.activities.map(String))].filter((a) => ACTIVITIES.some((x) => x.id === a)).sort()
+    ? [...new Set(arr(input.activities, "Activities"))].filter((a) => ACTIVITIES.some((x) => x.id === a)).sort()
     : prev?.activities ?? [];
   const shared_assumptions = input.shared_assumptions !== undefined ? str(input.shared_assumptions, 200) : prev?.shared_assumptions ?? null;
   const default_estimate = input.default_estimate !== undefined ? int(input.default_estimate, 500, 1_000_000) : prev?.default_estimate ?? null;
@@ -303,7 +313,7 @@ function normalizeIdea(s: RoomState, input: IdeaInput, prev?: TripOption) {
 export function addIdea(s: RoomState, actor: Actor, input: IdeaInput, now: Date, source: "custom" | "variant" = "custom"): { state: RoomState; id: string } {
   requireCoordinator(actor);
   requireOpen(s);
-  const n = normalizeIdea(s, input);
+  const n = normalizeIdea(s, input, now);
   const id = uniqueId(s, `${source === "variant" ? "v" : "c"}-${(n.destination_id ?? n.name.toLowerCase().replace(/[^a-z0-9]+/g, "")).slice(0, 12)}-${n.start_date.slice(5).replace("-", "")}`);
   const opt: TripOption = { room_id: s.room.id, id, source, ...n, version: 1, archived: false, created_at: now.toISOString() };
   return {
@@ -323,7 +333,7 @@ export function editIdea(s: RoomState, actor: Actor, id: string, input: IdeaInpu
   requireOpen(s);
   const prev = s.options.find((o) => o.id === id && !o.archived);
   if (!prev) throw new ActionError("not_found", "That idea no longer exists.", 404);
-  const n = normalizeIdea(s, input, prev);
+  const n = normalizeIdea(s, input, now, prev);
   const termsChanged = SHARED_TERMS.some((k) => !same(prev[k], n[k]));
   if (!termsChanged && prev.name === n.name) return s;
   const next: TripOption = { ...prev, ...n, version: termsChanged ? prev.version + 1 : prev.version };
@@ -354,7 +364,7 @@ export function createVariant(s: RoomState, actor: Actor, member: string, now: D
   requireCoordinator(actor);
   const o = focusOption(s);
   if (!o) throw new ActionError("no_focus", "Nothing is up for review yet.", 409);
-  const hint = fixHints(ideaFromOption(o), groupInput(s)).find((h) => h.member === member && h.shared);
+  const hint = fixHints(ideaFromOption(o), groupInput(s, todayIST(now))).find((h) => h.member === member && h.shared);
   if (!hint) throw new ActionError("no_hint", "No date or length change clears that limit.", 409);
   const c = hint.change as Exclude<HintChange, { type: "mode" }>;
   const start = c.type === "slot" ? c.start : o.start_date;
@@ -422,6 +432,7 @@ export function respond(s: RoomState, actor: Actor, input: RespondInput, now: Da
   const o = focusOption(s);
   if (!o) throw new ActionError("no_focus", "Nothing is up for review yet.", 409);
   if (!["yes", "change", "cannot"].includes(input.answer)) throw new ActionError("invalid", "Unknown answer.");
+  if (input.answer === "yes" && o.start_date <= todayIST(now)) throw new ActionError("past", "This trip's dates have passed. The coordinator can put another idea up for review.", 409);
   let state = s;
   if (input.answer === "yes") {
     if (!m.policy_ack_at && !input.ack_policy) throw new ActionError("policy", "Please read and tick the decision policy first.");

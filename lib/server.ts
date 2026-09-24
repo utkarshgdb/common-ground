@@ -96,6 +96,17 @@ export async function loadRoom(id: string): Promise<RoomState> {
   return s;
 }
 
+/**
+ * Read a room without taking the write lock (reads are the hot path: every open phone polls). Only when a deadline
+ * outcome is due does it fall through to the locked write path, which records the outcome exactly once.
+ */
+export async function readRoom(id: string): Promise<{ state: RoomState; now: Date }> {
+  const loaded = await loadRoom(id);
+  const now = new Date();
+  if (recordOutcomeIfDue(loaded, now).recorded) return mutateRoom(id, (s) => s);
+  return { state: loaded, now };
+}
+
 /** Load a room, record a due deadline outcome (first read/write after expiry), apply `mutate`, save the diff. */
 export async function mutateRoom(
   id: string,

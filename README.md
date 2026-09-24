@@ -100,7 +100,14 @@ npx vitest run --config vitest.eval.mts    # live Gemini note-parsing eval (need
 | 8. Mobile | Pass. No horizontal overflow at 390 px or 1280 px on Your trip, Compare, Preferences, Agree and the coordinator view. Lighthouse accessibility 100 on the landing and room pages; axe reports no violations. |
 | 9. Production smoke | _(after deploy)_ |
 
-Totals: 56 unit tests and 8 end-to-end tests passing. The same 8 end-to-end tests also pass against the real Supabase database with real Gemini (`E2E_REAL=1`, 24 Sep 2026). That run caught a real bug the local store couldn't: Next.js was caching database reads, so a friend's new session could be missed. The public Supabase key reads nothing from the `cg_` tables, and its writes are rejected. A deliberately planted bug (over-budget treated as a compromise) was caught by the suite.
+Totals: 68 unit tests and 8 end-to-end tests passing. The same 8 end-to-end tests also pass against the real Supabase database with real Gemini (`E2E_REAL=1`, 24 Sep 2026). That run caught a real bug the local store couldn't: Next.js was caching database reads, so a friend's new session could be missed. The public Supabase key reads nothing from the `cg_` tables, and its writes are rejected. A deliberately planted bug (over-budget treated as a compromise) was caught by the suite.
+
+**Stress test (24 Sep 2026)**, run like a pre-launch review:
+
+- `scripts/stress-api.mjs` sends 66 abuse checks: malformed and oversized bodies, cross-room sessions, members trying coordinator actions, forged tokens and focus keys, dates in the past, and response headers. It found 3 bugs; all fixed, and it now reports 0 findings.
+- `scripts/stress-load.mjs` has 5 friends saving and answering at the same moment, then fires 200 simultaneous reads. Result: no errors and no lost updates, on both the local store and the real database. It exposed that page refreshes were queuing behind saves; reads are now lock-free.
+- `tests/unit/edge.test.ts` (12 tests) covers suggestions never proposing past dates, forged focus keys, 2- and 12-person rooms, a group whose dates never overlap, a closed room, and withdrawing a yes. The worst-case 12-person, 20-date room is computed in about 30 ms.
+- `scripts/ux-states.mjs` photographs rarely-seen screens at 390 px (join, blocked yes, reopened, closed, after the deadline). It led to 3 copy and flow fixes, including never saying "fits everything" while something is still unknown.
 
 **P1-2 note-parsing eval:** 25 labelled notes (easy, ambiguous, out-of-scope, adversarial) in [tests/eval/notes.json](tests/eval/notes.json); target ≥ 90% exact match. **Result: 25/25 = 100% exact match** with `gemini-3.8-flash` (24 Sep 2026), including all 4 adversarial notes. Server-side allow-list validation runs regardless of what the model returns, and nothing counts until the person ticks it.
 
@@ -128,6 +135,7 @@ supabase/migrations/  cg_ tables
 - **Early focus may anchor the discussion.** Alternatives stay visible on Compare, and Riya can switch focus.
 - **Fit labels can hint at budget ranges.** A "Limit not met" against a known estimate says something about someone's ceiling. Fix hints can reveal that someone isn't free on one date. This is disclosed in the app.
 - **The catalogue is domestic India only**: 33 destinations and 14 home cities. There is no public-holiday inference; each person's own date ticks are the truth.
+- **Two server instances writing to the same room at the same instant**: each person's answers and preferences are separate rows, so they never overwrite each other. Room-level changes (such as two people triggering the first auto-focus at the same moment) use last-write-wins. Deadline outcomes are write-once.
 - **Rate limiting is per server instance** (best-effort on serverless). Deadline outcomes are recorded on the next read or write after the deadline, not by a background job.
 - **The private link** is shown once when you join and kept in your own browser. If you lose it, you can make a new one only from a device that's still signed in.
 - **Workflow benefits are unproven.** Nothing here shows that friends will answer faster than they would to a pinned WhatsApp message. That needs real users.

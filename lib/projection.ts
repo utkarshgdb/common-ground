@@ -11,7 +11,7 @@ import {
 } from "./engine";
 import { POLICY_TEXT, REASON_CHIPS } from "./actions";
 import type { Outcome, Preferences, RoomState } from "./types";
-import { formatIST, shortDate } from "./util";
+import { formatIST, shortDate, todayIST } from "./util";
 
 export type Viewer = { member: string | null; coordinator: boolean };
 
@@ -44,6 +44,7 @@ export type IdeaView = {
   offSeason: boolean;
   offReason: string | null;
   season: string | null;
+  past: boolean;
   isFocus: boolean;
   version: number;
   activities: string[];
@@ -114,7 +115,8 @@ function journeyUrl(prefs: Preferences | undefined, destId: string | null): stri
 }
 
 export function project(s: RoomState, viewer: Viewer, opts: { now: Date; groupLink: string; stepOverride?: NextStep | null }): RoomView {
-  const g = groupInput(s);
+  const today = todayIST(opts.now);
+  const g = groupInput(s, today);
   const me = viewer.member ? s.members.find((m) => m.name === viewer.member) ?? null : null;
   const myPrefs = me ? s.prefs.find((p) => p.member === me.name) : undefined;
   const ans = answers(s);
@@ -168,6 +170,7 @@ export function project(s: RoomState, viewer: Viewer, opts: { now: Date; groupLi
       offSeason: sc.offSeason,
       offReason: sc.offReason,
       season: seasonLine(sc.idea.destinationId, sc.idea.start),
+      past: sc.idea.start <= today,
       isFocus,
       version: sc.idea.version,
       activities: opt?.activities ?? [],
@@ -220,7 +223,7 @@ export function project(s: RoomState, viewer: Viewer, opts: { now: Date; groupLi
       focus: focus ? { name: focus.name, start: focus.start_date, days: focus.days } : null,
       validYes, total: s.members.length, complete, me: viewer.member,
     };
-    const step = opts.stepOverride ?? rulesNextStep(nextMove(s), ctx);
+    const step = opts.stepOverride ?? rulesNextStep(nextMove(s, today), ctx);
     const invite = rulesNextStep({ kind: "collect", names: [] }, ctx).whatsapp;
     const update = groupUpdate(ctx, people.map((p) => ({ name: p.name, state: p.state })));
     coordinator = {
