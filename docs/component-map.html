@@ -52,7 +52,7 @@
       </tr>
       <tr>
         <th>Gemini (LLM)<small>REST, server-side only</small></th>
-        <td>Coordinator opens the Next-step card; an idea goes up for review (sketch); a friend taps "Read my note".</td>
+        <td>Coordinator opens the Next-step card; someone opens the trip up for review (sketch, cached per version); a friend taps "Read my note".</td>
         <td>Anonymous slots A–E with statuses, answers and counts; the focused idea's name, tags, days and anonymous won't-dos; one person's own note.</td>
         <td>JSON response schema; allow-list of limit types; instructions never to decide, name people or mention money.</td>
         <td>Words one question + WhatsApp draft; writes a 3-line "what we'd do" sketch; reads a note into allow-listed limits.</td>
@@ -62,7 +62,7 @@
         <th>Supabase (Database)<small>project "mesaAI", cg_ tables</small></th>
         <td>Every server read and write (service-role key, never in the browser).</td>
         <td>Rooms, members (hashed tokens only), preferences, ideas, estimate corrections, versioned answers, deadline outcomes, events.</td>
-        <td>RLS on with no public policies; existing tables in the project untouched.</td>
+        <td>RLS on with no public policies (tested: the public key reads nothing and can&#39;t write); existing tables in the project untouched.</td>
         <td>Saves only the rows that changed; one outcome row per (room, deadline) so a deadline is recorded exactly once.</td>
         <td>Durable room state and the History timeline.</td>
       </tr>
