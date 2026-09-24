@@ -19,7 +19,10 @@ export default defineConfig({
         url: `http://localhost:${PORT}`,
         reuseExistingServer: true,
         timeout: 120_000,
-        // No Supabase and no Gemini key: local JSON store + rules fallback (acceptance test 7).
-        env: { CG_DATA_DIR: path.join(process.cwd(), ".data", "e2e"), GEMINI_API_KEY: "", SUPABASE_URL: "", SUPABASE_SERVICE_ROLE_KEY: "" },
+        // Default: no Supabase and no Gemini key → local JSON store + rules fallback (acceptance test 7).
+        // E2E_REAL=1 keeps .env.local (real Supabase + Gemini) to test the production adapters locally.
+        env: process.env.E2E_REAL
+          ? { CG_DATA_DIR: path.join(process.cwd(), ".data", "e2e") }
+          : { CG_DATA_DIR: path.join(process.cwd(), ".data", "e2e"), GEMINI_API_KEY: "", SUPABASE_URL: "", SUPABASE_SERVICE_ROLE_KEY: "" },
       },
 });
