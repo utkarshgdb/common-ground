@@ -100,7 +100,7 @@ npx vitest run --config vitest.eval.mts    # live Gemini note-parsing eval (need
 | 8. Mobile | Pass. No horizontal overflow at 390 px or 1280 px on Your trip, Compare, Preferences, Agree and the coordinator view. Lighthouse accessibility 100 on the landing and room pages; axe reports no violations. |
 | 9. Production smoke | _(after deploy)_ |
 
-Totals: 56 unit tests and 8 end-to-end tests passing. A deliberately planted bug (over-budget treated as a compromise) was caught by the suite.
+Totals: 56 unit tests and 8 end-to-end tests passing. The same 8 end-to-end tests also pass against the real Supabase database with real Gemini (`E2E_REAL=1`, 24 Sep 2026). That run caught a real bug the local store couldn't: Next.js was caching database reads, so a friend's new session could be missed. The public Supabase key reads nothing from the `cg_` tables, and its writes are rejected. A deliberately planted bug (over-budget treated as a compromise) was caught by the suite.
 
 **P1-2 note-parsing eval:** 25 labelled notes (easy, ambiguous, out-of-scope, adversarial) in [tests/eval/notes.json](tests/eval/notes.json); target ≥ 90% exact match. **Result: 25/25 = 100% exact match** with `gemini-3.8-flash` (24 Sep 2026), including all 4 adversarial notes. Server-side allow-list validation runs regardless of what the model returns, and nothing counts until the person ticks it.
 
