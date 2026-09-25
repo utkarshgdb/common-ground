@@ -4,7 +4,7 @@
 
 Built for the Mesa School of Business L2 assessment (Part B, Section A: group trip planner). The locked spec is [docs/PRD.md](docs/PRD.md).
 
-- **Live app:** _(added after deploy)_
+- **Live app:** https://common-ground-cyan.vercel.app (the landing page has **Try the demo**)
 - **Component map:** [docs/component-map.png](docs/component-map.png)
 
 ## The problem
@@ -98,7 +98,7 @@ npx vitest run --config vitest.eval.mts    # live Gemini note-parsing eval (need
 | 6. Demo stories (Playwright) | Pass. All three. |
 | 7. No Gemini key | Pass. The whole end-to-end suite runs with no key. |
 | 8. Mobile | Pass. No horizontal overflow at 390 px or 1280 px on Your trip, Compare, Preferences, Agree and the coordinator view. Lighthouse accessibility 100 on the landing and room pages; axe reports no violations. |
-| 9. Production smoke | _(after deploy)_ |
+| 9. Production smoke | Pass (25 Sep 2026, on the live URL). All 8 end-to-end tests pass: the three demo stories, a real room created in one browser and joined from a second, and a check that the raw API response as Aisha has no one else's private data. Lighthouse accessibility is 100 on the landing page and on the room page as Karan and as Riya. Gemini is live (next-step wording and the trip sketch). Session cookies are `Secure; HttpOnly; SameSite=Lax`. Functions run in Sydney (`syd1`) next to the database; a click takes about 0.5 s from India. |
 
 Totals: 68 unit tests and 8 end-to-end tests passing. The same 8 end-to-end tests also pass against the real Supabase database with real Gemini (`E2E_REAL=1`, 24 Sep 2026). That run caught a real bug the local store couldn't: Next.js was caching database reads, so a friend's new session could be missed. The public Supabase key reads nothing from the `cg_` tables, and its writes are rejected. A deliberately planted bug (over-budget treated as a compromise) was caught by the suite.
 
